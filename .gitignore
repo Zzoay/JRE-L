@@ -1,1 +1,3 @@
 config/
+__pycache__/
+usage.txt

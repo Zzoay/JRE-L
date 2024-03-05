@@ -4,6 +4,7 @@ from data_helper import load_origin_data
 from prompts import JOURNALIST_PROMPT, TEACHER_PROMPT, STUDENT_PROMPT, REVISION_PROMPT, EVAL_PROMPT
 from utils import get_response
 
+
 def act(input_text, agent_type, model):
     if agent_type == "journalist":
         prompt_template = JOURNALIST_PROMPT
@@ -29,6 +30,6 @@ def act(input_text, agent_type, model):
 
 if __name__ == "__main__":
     for d in load_origin_data():
-        print(act(d, agent_type="journalist", model='gpt-3.5-turbo'))
+        print(act(d, agent_type="journalist", model='gpt-4'))
         raise RuntimeError
         print("===")

@@ -1,23 +1,27 @@
 
 import json
+import re
 import requests
 import time
-from requests.packages.urllib3.util.ssl_ import create_urllib3_context
+from collections import OrderedDict
+from datetime import datetime
 
+import gpustat
 import openai
 
 from constants import OPENAI_CONFIG
 from prompts import JOURNALIST_PROMPT, PROMPT_FOR_LLAMA, STUDENT_PROMPT, TEACHER_PROMPT
 
 
-def get_response(prompt, model="gpt-3.5-turbo", mode='ust'):
-    if mode == 'ust':
-        return get_response_ust([{"role": "user", "content": prompt}], {"model": model})
-    if mode == 'llama':
-        return get_response_llama(prompt)
+def get_response(prompt, input_text, model="gpt-3.5-turbo", mode='ust', port=8000, top_p=0.9):
+    if mode in ['ust', 'llama']:
+        return ger_response_url(
+            # [{"role": "system", "content": prompt}, {"role": "user", "content": input_text}],
+            [{"role": "user", "content": prompt + '\n' + input_text}],
+            mode=mode, parameters={"model": model, "top_p": top_p}, port=port)
     while True:
         try:
-            completion = openai.ChatCompletion.create(model=model, temperature=1, messages=[{"role": "user", "content": prompt}])
+            completion = openai.ChatCompletion.create(model=model, top_p=top_p, messages=[{"role": "user", "content": prompt + '\n' + input_text}])
         except Exception as e:
             print(e)
             time.sleep(3)
@@ -25,80 +29,194 @@ def get_response(prompt, model="gpt-3.5-turbo", mode='ust'):
         break
     return completion.choices[0].message.content.strip()
 
-def get_response_ust(messages, parameters=None):
-    url = OPENAI_CONFIG['openai_api_base']
-    headers = {
+def ger_response_url(messages, mode, parameters=None, port=8000):
+    if mode == 'ust':
+        url = OPENAI_CONFIG['openai_api_base']
+        headers = {
         "Content-Type": "application/json",
         "Authorization": OPENAI_CONFIG['openai_api_key']
         }
+    elif mode == 'llama':
+        url = f"http://0.0.0.0:{port}/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            }
+    else:
+        raise ValueError("Invalid mode")
     data = {
         "messages": messages,
+        "max_tokens": 2048,
+        "frequency_penalty": 1,
+        "repetition_penalty": 1,
+        # "stop_token_ids": [128001, 128009]
         }
     if parameters is not None:
         data.update(parameters)
-    max_tries, cnt = 3, 0
+    max_tries, cnt = 5, 0
     while True:
         try:
+            start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             response = requests.post(url, headers=headers, data=json.dumps(data)).json()
             with open('usage.txt', 'a') as f:
-                f.write(f"{response['created']}\t{parameters['model']}\t{response['usage']}\n")
+                end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                usage = dict(OrderedDict(sorted(response['usage'].items(), key=lambda x: x[0])))
+                f.write(f"{start_time}\t{end_time}\t{parameters['model']}\t{usage}\n")
+            if has_chinese(response['choices'][0]['message']['content']):
+                time.sleep(3)
+                cnt += 1
+                if cnt >= max_tries:
+                    return remove_chinese(response['choices'][0]['message']['content'])
+                continue
+            if len(response['choices'][0]['message']['content'].strip().split(" ")) < 100:
+                time.sleep(3)
+                cnt += 1
+                if cnt >= max_tries:
+                    # return the original paper
+                    return messages[0]['content'][messages[0]['content'].find("### Content")+len("### Content"):]
+                continue
         except Exception as e:
             print(e)
-            time.sleep(3)
+            print(response)
+            time.sleep(5 + cnt**2)
             cnt += 1
             if cnt >= max_tries:
-                break
+                # return the original paper
+                return messages[0]['content'][messages[0]['content'].find("### Content")+len("### Content"):]
             continue
         break
     return response['choices'][0]['message']['content'].strip()
 
-def get_response_llama(prompt):
-    url = "https://127.0.0.1:5000/predict"
-    data = {"text": prompt}
-    headers = {'Content-Type': 'application/json'} 
-    output_text = requests.post(url, json=data, headers=headers, verify=False).json()['output_text']
-    output_text = output_text[output_text.find('Output:')+7:]
-    return output_text
+# def extract_section(text, term):
+#     start_index = text.find(f"[{term.upper()}_START]")
+#     end_index = text.find(f"[{term.upper()}_END]")
+#     if start_index != -1:
+#         if end_index != -1:
+#             terms = text[start_index:end_index + len(f"[{term.upper()}_END]")]
+#             return '\n' + terms.strip()
+#         # if end not found
+#         pattern = r"\[(.*?)_START\]"
+#         matches = list(re.finditer(pattern, text[start_index + len(f"[{term.upper()}_START]"):]))
+#         if len(matches) != 0:
+#             new_start_index = matches[0].start()
+#             terms = text[start_index:new_start_index + start_index + len(f"[{term.upper()}_START]")]
+#         else:
+#             terms = text[start_index:]
+#         return '\n' + terms.strip()
+#     # if term.upper() == "ADVICE":  # advice is special, if match nothing, return ""
+#     #     return ""
+#     return text
+
+def extract_section(text, term):
+    start_index = text.find(f"## {term}")
+    if start_index != -1:
+        # if end not found
+        pattern = r"##\s\w+\n"
+        matches = list(re.finditer(pattern, text[start_index + len(f"## {term}"):]))
+        if len(matches) != 0:
+            new_start_index = matches[0].start()
+            terms = text[start_index:new_start_index + start_index + len(f"## {term}")]
+        else:
+            terms = text[start_index:]
+        return '\n' + terms.strip()
+    if term == "Advice": # advice is special, if match nothing, return ""
+        return ""
+    return text
+
+# def extract_score(text, dim):
+#     # find all [[]] pattern
+#     pattern = r'\[\[(\d+)\]\]'
+#     matches = re.findall(pattern, text)
+#     if len(matches) >= 3:
+#         if dim.upper() == "ACCURACY":
+#             return int(matches[0])
+#         elif dim.upper() == "ACCESSIBILITY":
+#             return int(matches[1])
+#         elif dim.upper() == "INFORMATION":
+#             return int(matches[2])
+#     return 3.0
+
+def extract_score(text, dim):
+    score_dct = {"poor": 1, "fair": 2, "good": 3, "excellent": 4, "perfect": 5}
+    pattern = r'\[\[(.*?)\]\]'
+    factors = text.split("\n")
+    if len(factors) == 3:
+        if dim.upper() == "ACCURACY":
+            text = factors[0]
+        elif dim.upper() == "ACCESSIBILITY":
+            text = factors[1]
+        elif dim.upper() == "INFORMATION":
+            text = factors[2]
+        matches = re.findall(pattern, text)
+        if len(matches) != 0:
+            return score_dct.get(matches[0].lower(), 2.5)
+    
+    matches = re.findall(pattern, text)
+    if len(matches) >= 3:
+        if dim.upper() == "ACCURACY":
+            return score_dct.get(matches[0].lower(), 2.5)
+        elif dim.upper() == "ACCESSIBILITY":
+            return score_dct.get(matches[1].lower(), 2.5)
+        elif dim.upper() == "INFORMATION":
+            return score_dct.get(matches[2].lower(), 2.5)
+    return 2.5
+
+def extract_score_pair(text, exchange=False):
+    # [[x]]
+    pattern = r'\[\[(.*?)\]\]'
+    matches = re.findall(pattern, text)
+    if len(matches) >= 1:
+        m = matches[0]
+        if m.upper() == 'A':
+            return 0 if not exchange else 1
+        elif m.upper() == 'B':
+            return 1 if not exchange else 0
+    
+    # [x]
+    pattern = r'\[(.*?)\]'
+    matches = re.findall(pattern, text)
+    if len(matches) >= 1:
+        m = matches[0]
+        if m.upper() == 'A':
+            return 0 if not exchange else 1
+        elif m.upper() == 'B':
+            return 1 if not exchange else 0
+    # x
+    a_count = text.count("Article A")
+    b_count = text.count("Article B")
+    if a_count > b_count:
+        return 0 if not exchange else 1
+    else:
+        return 1 if not exchange else 0
+    print("Not match")
+    return 0
 
 
-if __name__ == "__main__":
-    # prompt_template = STUDENT_PROMPT.split("\n")[0]
-    input_text = """
-    {
-    "press": "Imagine robots that can not only lift boxes but also sculpt playdough and stir your coffee! Researchers at the Massachusetts Institute of Technology are paving the way for this future with smart technology that helps robots understand and predict how different materials behave – whether they’re solid, squishy, or runny. The secret sauce? A computer brain inspired by the tiny particles that make up everything we see and touch.
+def extract_points(text):
+    pattern = r"\d+\.\s*(.*?)(?=\n\d+\.|\Z|\n)"
 
-    Let's break it down a bit: everything in our world is made of particles, tiny bits of stuff that move around and interact in specific ways. These MIT scientists have essentially taught a computer program to learn from these movements and interactions. Just like how you learn to catch a ball by practicing, this program gets better the more it ‘practices’ with different materials.
+    matches = re.findall(pattern, text)
 
-    The cool part is, this isn't just about copying what happens in real life; it's about letting robots figure things out on the fly. Picture a robot in a factory that can adapt to new tasks with materials it’s never seen before, just by pushing or pulling them a little and watching what happens. That’s what MIT’s technology is aiming to achieve.
+    if len(matches) == 0:
+        res = text.split("\n")
+        if len(res) != 0:
+            return [x.replace("[ADVICE_END]", "").replace("[ADVICE_START]", "").strip() for x in res]
+        return []
 
-    The team's techniques have been put to the test not only in computer simulations but also in the real world, where robots have successfully molded materials like plasticine into specific shapes. Imagine the possibilities: robots that can adapt to any task, from crafting delicate artwork to making your morning latte!
+    return [match.replace("[ADVICE_END]", "").replace("[ADVICE_START]", "").strip() for match in matches]
 
-    The brains behind these crafting robots say this is similar to the intuitive understanding we humans have about the physical world, and they’re excited to bring that kind of intuition to robots. They envision a future where robots can be as creative and adaptable as we are, transforming the way we think about what machines can do in our daily lives.",
+def has_chinese(text):
+    pattern = re.compile(r'[\u4e00-\u9fa5]')
+    return bool(pattern.search(text))
 
-    "questions": [
-        "Who is leading the development of this particle-based simulation technology?",
-        "What is the main goal of this technology in terms of robot functionality?",
-        "How do robots learn to manipulate different materials according to this research?",
-        "What are some potential practical applications for this technology?",
-        "How does the program improve its performance with different materials?"
-    ]
-    }
-    """
-    # print(get_response(PROMPT_FOR_LLAMA.format(system_prompt=prompt_template, user_prompt=input_text), mode='llama'))
-    input_text += "Reader's Answer:"
-    input_text += """
-    1. Who is leading the development of this particle-based simulation technology?
-    The development of this particle-based simulation technology is being led by researchers at the Massachusetts Institute of Technology (MIT). Specifically, the team consists of scientists from the MIT Computer Science and Artificial Intelligence Laboratory (CSAIL) and the MIT Department of Physics.
-    2. What is the main goal of this technology in terms of robot functionality?
-    The main goal of this technology is to enable robots to understand and predict how different materials behave, regardless of their properties or composition. By achieving this level of material comprehension, robots can perform a wide range of tasks that would otherwise require human-like intuition and dexterity, such as crafting delicate artwork, manufacturing complex products, and even making personalized breakfast drinks.
-    3. How do robots learn to manipulate different materials according to this research?
-    Robots learn to manipulate different materials through a computer program that is trained using machine learning algorithms. This program is designed to learn from the movements and interactions of particles in various materials, much like how humans learn by observing and practicing. As the program encounters different materials, it adapts and improves its performance through trial and error, allowing it to master a wide range of manipulation tasks.
-    4. What are some potential practical applications for this technology?
-    Some potential practical applications for this technology include but are not limited to:
-    * Manufacturing: Robots equipped with this technology could revolutionize the manufacturing industry by enabling them to adapt to new production tasks and materials with ease, leading to increased efficiency and productivity.
-    * Healthcare: Robotic systems could use this technology to develop novel medical devices or to improve existing ones, such as prosthetics or surgical tools, which could lead to improved patient outcomes.
-    * Space Exploration: With the ability to adapt to unfamiliar environments, robots utilizing this technology could become essential components of space missions, assisting astronauts in conducting scientific experiments or repairs without putting themselves in harm's way.
-    5. How does the program improve its performance with different materials?
-    The program improves its performance with different materials by continuously training itself using machine learning algorithms. Each time the program encounters a new material, it practices manipulating it, gradually refining its actions until it can accurately predict the material's behavior. Through this process, the program becomes increasingly proficient at handling diverse materials, eventually approaching the level of human intuition and dexterity.
-    """
-    print(get_response(TEACHER_PROMPT.format(input_text), model="gpt-4", mode='ust'))
+def remove_chinese(text):
+    pattern = re.compile(r'[\u4e00-\u9fa5]')
+    return pattern.sub('', text)
+
+def find_idle_gpu():
+    gpu_stats = gpustat.new_query()
+    for gpu in gpu_stats:
+        utilization = gpu.utilization
+        if utilization < 5:
+            # print(f"GPU {gpu.index}: Utilization {utilization}%")
+            return gpu.index
+    return None

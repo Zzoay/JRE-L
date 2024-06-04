@@ -1,0 +1,4 @@
+{
+    "openai_api_base": "API BASE URL",
+    "openai_api_key": "Your API KEY"
+}

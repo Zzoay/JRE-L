@@ -1,0 +1,4 @@
+data_path: data/scitechnews
+train_file: valid.json
+test_file: test.json
+model_path: xxx/models/ # Parent Path of LLMs' checkpoints, if your Qwen model is saved in xxx/models/Qwen1.5, then model_path should be xxx/models.

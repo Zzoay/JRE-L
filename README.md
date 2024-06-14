@@ -1,5 +1,5 @@
 # LLMs Meet Automatic Science Journalism
-This repository contains implementation code on LLM-Collaboration on Automatic Science Journalism for General Audiences. Our paper is under review and will be released soon.
+This repository contains implementation code on LLM-Collaboration on Automatic Science Journalism for General Audiences.
 
 ## Requirements
 The main environments are listed below, if there are other packages that need to be installed at runtime, just install them.
@@ -14,7 +14,10 @@ Furthermore, you should download the Qwen1.5-7B-Chat and Qwen1.5-1.8B-Chat from 
 ## Getting Started
 
 ### Downloading the data
-Download the data from the following link and extract it to the `data` directory.
+Since the datasets are considerable in size, it is suggested to acquire them from the original source link. You can access the data via the provided link and proceed to extract it into the `data` folder.
+- https://github.com/ronaldahmed/scitechnews
+- https://github.com/TGoldsack1/Corpora_for_Lay_Summarisation
+
 For prompting, you can only download the `test` directory.
 
 ### Running LLM services
@@ -43,10 +46,3 @@ python run.py \
     --editor_port 8002 \
 ```
 where the journalist_port, reader_port, and editor_port should be the same as those models set in the service running.
-
-
-## Citation
-If this work is helpful, please kindly cite as:
-```latex
-
-```

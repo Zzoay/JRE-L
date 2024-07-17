@@ -46,3 +46,17 @@ python run.py \
     --editor_port 8002 \
 ```
 where the journalist_port, reader_port, and editor_port should be the same as those models set in the service running.
+
+## Citation
+If you find our work useful, please cite our paper.
+```tex
+@misc{jiang2024llmcollaborationautomaticsciencejournalism,
+      title={LLM-Collaboration on Automatic Science Journalism for the General Audience}, 
+      author={Gongyao Jiang and Xinran Shi and Qiong Luo},
+      year={2024},
+      eprint={2407.09756},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2407.09756}, 
+}
+```

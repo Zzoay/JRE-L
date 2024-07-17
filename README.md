@@ -50,7 +50,7 @@ where the journalist_port, reader_port, and editor_port should be the same as th
 ## Citation
 If you find our work useful, please cite our paper.
 ```tex
-@misc{jiang2024llmcollaborationautomaticsciencejournalism,
+@misc{jiang2024llmclbr,
       title={LLM-Collaboration on Automatic Science Journalism for the General Audience}, 
       author={Gongyao Jiang and Xinran Shi and Qiong Luo},
       year={2024},

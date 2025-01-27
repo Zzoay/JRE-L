@@ -1,5 +1,5 @@
 # LLMs Meet Automatic Science Journalism
-This repository contains implementation code on LLM-Collaboration on Automatic Science Journalism for General Audiences.
+This repository contains implementation code on JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience.
 
 ## Requirements
 The main environments are listed below, if there are other packages that need to be installed at runtime, just install them.

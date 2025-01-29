@@ -50,13 +50,13 @@ where the journalist_port, reader_port, and editor_port should be the same as th
 ## Citation
 If you find our work useful, please cite our paper.
 ```tex
-@misc{jiang2024llmclbr,
-      title={LLM-Collaboration on Automatic Science Journalism for the General Audience}, 
+@misc{jiang2025jreljournalistreadereditor,
+      title={JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience}, 
       author={Gongyao Jiang and Xinran Shi and Qiong Luo},
-      year={2024},
-      eprint={2407.09756},
+      year={2025},
+      eprint={2501.16865},
       archivePrefix={arXiv},
       primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2407.09756}, 
+      url={https://arxiv.org/abs/2501.16865}, 
 }
 ```

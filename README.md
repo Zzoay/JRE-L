@@ -1,5 +1,5 @@
 # LLMs Meet Automatic Science Journalism
-This repository contains implementation code on JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience.
+This repository contains implementation code on *JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience*, published in NAACL 2025.
 
 ## Requirements
 The main environments are listed below, if there are other packages that need to be installed at runtime, just install them.
@@ -50,13 +50,21 @@ where the journalist_port, reader_port, and editor_port should be the same as th
 ## Citation
 If you find our work useful, please cite our paper.
 ```tex
-@misc{jiang2025jreljournalistreadereditor,
-      title={JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience}, 
-      author={Gongyao Jiang and Xinran Shi and Qiong Luo},
-      year={2025},
-      eprint={2501.16865},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2501.16865}, 
+@inproceedings{jiang-etal-2025-jre,
+    title = "JRE-L: Journalist, Reader, and Editor LLMs in the Loop for Science Journalism for the General Audience",
+    author = "Jiang, Gongyao  and
+      Shi, Xinran  and
+      Luo, Qiong",
+    editor = "Chiruzzo, Luis  and
+      Ritter, Alan  and
+      Wang, Lu",
+    booktitle = "Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)",
+    month = apr,
+    year = "2025",
+    address = "Albuquerque, New Mexico",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.naacl-long.335/",
+    pages = "6579--6594",
+    ISBN = "979-8-89176-189-6"
 }
 ```
